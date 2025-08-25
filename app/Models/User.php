@@ -8,7 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+class User extends Authenticatable //model dùng cho đăng nhập/xác thực
 {
     use HasApiTokens, HasFactory, Notifiable;
 
@@ -17,10 +17,15 @@ class User extends Authenticatable
      *
      * @var array<int, string>
      */
-    protected $fillable = [
+    protected $fillable = [ // trường
         'name',
         'email',
         'password',
+        'nickname',
+        'date_of_birth',
+        'phone',
+        'gender',
+        'avatar',
     ];
 
     /**
@@ -41,5 +46,6 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'date_of_birth' => 'date'
     ];
 }
