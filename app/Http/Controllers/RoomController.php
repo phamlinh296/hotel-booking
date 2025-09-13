@@ -1,0 +1,91 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Models\Room;
+use App\Models\Hotel;
+
+class RoomController extends Controller
+{
+    // GET /api/hotels/{hotel_id}/rooms
+    public function index($hotel_id)
+    {
+        $hotel = Hotel::findOrFail($hotel_id);
+        $rooms = $hotel->rooms()->get(['id', 'name', 'price']);
+        return response()->json($rooms);
+    }
+
+    // POST /api/hotels/{hotel_id}/rooms
+    public function store(Request $request, $hotel_id)
+    {
+        $hotel = Hotel::findOrFail($hotel_id);
+
+        // Optional: check if auth()->id() is owner of hotel or admin
+        if (auth()->user()->role !== 'admin' && $hotel->author_id !== auth()->id()) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'price' => 'required|numeric',
+            'max_guests' => 'required|integer',
+            'bed_count' => 'nullable|integer',
+            'bathroom_count' => 'nullable|integer',
+            'status' => 'nullable|string',
+        ]);
+
+        $data['hotel_id'] = $hotel->id;
+
+        $room = Room::create($data);
+
+        return response()->json([
+            'message' => 'Room created',
+            'room' => $room
+        ]);
+    }
+
+    // PUT /api/rooms/{id}
+    public function update(Request $request, $id)
+    {
+        $room = Room::findOrFail($id);
+
+        // Optional: check owner or admin
+        if (auth()->user()->role !== 'admin' && $room->hotel->author_id !== auth()->id()) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $data = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'description' => 'sometimes|string',
+            'price' => 'sometimes|numeric',
+            'max_guests' => 'sometimes|integer',
+            'bed_count' => 'sometimes|integer',
+            'bathroom_count' => 'sometimes|integer',
+            'status' => 'sometimes|string',
+        ]);
+
+        $room->update($data);
+
+        return response()->json([
+            'message' => 'Room updated',
+            'room' => $room
+        ]);
+    }
+
+    // DELETE /api/rooms/{id}
+    public function destroy($id)
+    {
+        $room = Room::findOrFail($id);
+
+        // Optional: check owner or admin
+        if (auth()->user()->role !== 'admin' && $room->hotel->author_id !== auth()->id()) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $room->delete();
+
+        return response()->json(['message' => 'Room deleted']);
+    }
+}

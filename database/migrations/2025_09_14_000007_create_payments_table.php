@@ -12,7 +12,7 @@ return new class extends Migration {
             $table->foreignId('booking_id')->constrained()->cascadeOnDelete();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->decimal('amount', 10, 2);
-            $table->string('method');
+            $table->enum('method', ['credit', 'paypal', 'vnpay']);
             $table->enum('status', ['pending', 'completed', 'failed'])->default('pending');
             $table->string('transaction_ref')->nullable();
             $table->timestamps();
