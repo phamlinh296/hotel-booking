@@ -6,7 +6,10 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
-use Laravel\Socialite\Facades\Socialite;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -16,40 +19,30 @@ class AuthController extends Controller
         $request->validate([
             'name'     => 'required|string|max:255',
             'email'    => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6|confirmed'
-            // 'nickname' => 'nullable|string|max:255',
-            // 'date_of_birth' => 'nullable|date',
-            // 'phone' => 'nullable|string|max:20',
-            // 'gender' => 'nullable|in:male,female,other',
+            'password' => 'required|string|min:6|confirmed',
         ]);
 
         $user = User::create([
             'name'     => $request->name,
             'email'    => $request->email,
-            'password' => Hash::make($request->password)
-            // 'nickname' => $request->nickname,
-            // 'date_of_birth' => $request->date_of_birth,
-            // 'phone' => $request->phone,
-            // 'gender' => $request->gender,
+            'password' => Hash::make($request->password),
         ]);
 
-        // Tạo token đăng nhập luôn sau khi đăng ký
         $token = $user->createToken('api_token')->plainTextToken;
 
         return response()->json([
             'message' => 'Đăng ký thành công',
             'user'    => $user,
-            'token'   => $token
+            'token'   => $token,
         ], 201);
     }
 
-    // Đăng nhập có Remember me
+    // Đăng nhập
     public function login(Request $request)
     {
         $request->validate([
             'email'    => 'required|email',
             'password' => 'required',
-            'remember' => 'boolean'
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -60,7 +53,7 @@ class AuthController extends Controller
             ]);
         }
 
-        // Xóa token cũ (nếu muốn)
+        // Xóa token cũ nếu muốn (tránh login nhiều device)
         $user->tokens()->delete();
 
         $token = $user->createToken('api_token')->plainTextToken;
@@ -68,7 +61,7 @@ class AuthController extends Controller
         return response()->json([
             'message' => 'Đăng nhập thành công',
             'user'    => $user,
-            'token'   => $token
+            'token'   => $token,
         ]);
     }
 
@@ -76,29 +69,122 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         $request->user()->tokens()->delete();
+        return response()->json(['message' => 'Đăng xuất thành công']);
+    }
+
+    // Lấy profile
+    public function profile(Request $request)
+    {
+        return response()->json($request->user());
+    }
+
+    // Cập nhật profile
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'name'   => 'sometimes|string|max:255',
+            'phone'  => 'nullable|string|max:20',
+            'avatar' => 'nullable|string|max:255',
+        ]);
+
+        $user->update($request->only(['name', 'phone', 'avatar']));
 
         return response()->json([
-            'message' => 'Đăng xuất thành công'
+            'message' => 'Cập nhật profile thành công',
+            'user'    => $user,
         ]);
     }
 
-    // Google Login
-    public function redirectToGoogle()
+    // Đổi mật khẩu
+    public function changePassword(Request $request)
     {
-        return Socialite::driver('google')->redirect();
+        $request->validate([
+            'old_password' => 'required|string',
+            'new_password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($request->old_password, $user->password)) {
+            return response()->json(['message' => 'Mật khẩu cũ không đúng'], 400);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->new_password),
+        ]);
+
+        return response()->json(['message' => 'Đổi mật khẩu thành công']);
     }
 
-    public function handleGoogleCallback()
+    // Quên mật khẩu - gửi link reset
+    public function forgotPassword(Request $request)
     {
-        $googleUser = Socialite::driver('google')->user();
+        $request->validate(['email' => 'required|email']);
 
-        $user = User::firstOrCreate(
-            ['email' => $googleUser->getEmail()],
-            ['name' => $googleUser->getName(), 'password' => Hash::make(uniqid())]
+        $user = User::where('email', $request->email)->first();
+        if (!$user) {
+            return response()->json(['message' => 'Email không tồn tại'], 404);
+        }
+
+        // Tạo token
+        $token = Str::random(64);
+
+        // Lưu vào bảng password_resets
+        DB::table('password_resets')->updateOrInsert(
+            ['email' => $user->email],
+            ['token' => Hash::make($token), 'created_at' => now()]
         );
 
-        $token = $user->createToken('api_token')->plainTextToken;
+        // Tạo URL reset (frontend hoặc API endpoint)
+        $resetUrl = config('app.frontend_url') . "/reset-password?token=$token&email=" . urlencode($user->email);
 
-        return response()->json(['token' => $token, 'user' => $user]);
+        // Gửi mail (nếu có setup Mail)
+        // Mail::to($user->email)->send(new ResetPasswordMail($resetUrl));
+
+        // Test API dev: trả luôn token + link để Postman reset
+        return response()->json([
+            'message' => 'Link reset password đã được tạo',
+            'reset_url' => $resetUrl,
+            'token' => $token
+        ]);
+    }
+
+    // Reset mật khẩu
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'token'    => 'required',
+            'email'    => 'required|email',
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $record = DB::table('password_resets')->where('email', $request->email)->first();
+        if (!$record) {
+            return response()->json(['message' => 'Token không hợp lệ'], 400);
+        }
+
+        // Kiểm tra token hash
+        if (!Hash::check($request->token, $record->token)) {
+            return response()->json(['message' => 'Token không hợp lệ'], 400);
+        }
+
+        $user = User::where('email', $request->email)->first();
+        if (!$user) {
+            return response()->json(['message' => 'User không tồn tại'], 404);
+        }
+
+        // Cập nhật mật khẩu
+        $user->password = Hash::make($request->password);
+        $user->save();
+
+        // Xóa token sau khi reset
+        DB::table('password_resets')->where('email', $request->email)->delete();
+
+        // Logout tất cả session cũ
+        $user->tokens()->delete();
+
+        return response()->json(['message' => 'Đặt lại mật khẩu thành công']);
     }
 }
