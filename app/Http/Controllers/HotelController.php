@@ -192,4 +192,79 @@ class HotelController extends Controller
 
         return response()->json($recent);
     }
+
+    //search
+    public function search(Request $request)
+    {
+        $request->validate([
+            'location'   => 'nullable|string|max:255',
+            'check_in'   => 'nullable|date',
+            'check_out'  => 'nullable|date|after:check_in',
+            'adults'     => 'nullable|integer|min:1',
+            'children'   => 'nullable|integer|min:0',
+            'infants'    => 'nullable|integer|min:0',
+        ]);
+
+        //tổng khách
+        $adults   = (int) $request->input('adults', 1);
+        $children = (int) $request->input('children', 0);
+        $infants  = (int) $request->input('infants', 0);
+        $totalGuests = $adults + $children + $infants;
+
+        $checkIn  = $request->input('check_in');
+        $checkOut = $request->input('check_out');
+
+        //query
+        $hotels = Hotel::query()
+            //Filter theo location nếu user nhập
+            ->when($request->filled('location'), function ($query) use ($request) {
+                $location = $request->input('location');
+                $query->where(function ($q) use ($location) {
+                    $q->where('location_city', 'LIKE', "%{$location}%")
+                        ->orWhere('location_country', 'LIKE', "%{$location}%")
+                        ->orWhere('address', 'LIKE', "%{$location}%");
+                });
+            })
+            //hotel sức chứa >= tổng khách
+            ->when($totalGuests > 0, function ($query) use ($totalGuests) {
+                $query->where('max_guests', '>=', $totalGuests);
+            })
+            //Filter theo khoảng ngày check-in / check-out
+            ->when($checkIn && $checkOut, function ($query) use ($checkIn, $checkOut, $totalGuests) {
+                $query->where(function ($q) use ($checkIn, $checkOut, $totalGuests) {
+                    // Khách sạn chưa có booking trùng ngày
+                    $q->whereDoesntHave('bookings', function ($sub) use ($checkIn, $checkOut) {
+                        $sub->where(function ($b) use ($checkIn, $checkOut) {
+                            $b->whereBetween('check_in_date', [$checkIn, $checkOut]) //Booking bắt đầu trong khoảng
+                                ->orWhereBetween('check_out_date', [$checkIn, $checkOut]) // Booking kết thúc trong khoảng
+                                ->orWhere(function ($nested) use ($checkIn, $checkOut) { // Booking bao trọn khoảng user muốn
+                                    $nested->where('check_in_date', '<=', $checkIn)
+                                        ->where('check_out_date', '>=', $checkOut);
+                                });
+                        });
+                    })
+                        // khách sạn có booking, kiểm tra còn đủ chỗ
+                        ->orWhereHas('bookings', function ($sub) use ($checkIn, $checkOut, $totalGuests) {
+                            $sub->selectRaw('hotel_id, SUM(guests) as total_booked')
+                                ->where(function ($b) use ($checkIn, $checkOut) {
+                                    $b->whereBetween('check_in_date', [$checkIn, $checkOut])
+                                        ->orWhereBetween('check_out_date', [$checkIn, $checkOut])
+                                        ->orWhere(function ($nested) use ($checkIn, $checkOut) {
+                                            $nested->where('check_in_date', '<=', $checkIn)
+                                                ->where('check_out_date', '>=', $checkOut);
+                                        });
+                                })
+                                ->groupBy('hotel_id')
+                                ->havingRaw('hotels.max_guests - total_booked >= ?', [$totalGuests]); //// Chỉ lấy khách sạn còn đủ sức chứa cho số khách yêu cầu
+                        });
+                });
+            })
+            ->with('author') //Load thông tin author (người tạo khách sạn)
+            ->paginate(4);
+
+        return response()->json([
+            'message' => 'Danh sách khách sạn tìm được',
+            'data'    => $hotels
+        ]);
+    }
 }

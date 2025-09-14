@@ -33,6 +33,8 @@ Route::get('/me/bookmarks', [UserController::class, 'myBookmarks'])->middleware(
 Route::get('/me/recent-views', [HotelController::class, 'recentViews'])->middleware('auth:sanctum');
 
 Route::prefix('hotels')->group(function () {
+    //search
+    Route::get('/search', [HotelController::class, 'search']);
     // Recent viewed hotels - phải đặt trước /{id} để không bị nhầm
     // Route::get('/recent', [HotelController::class, 'recentViews'])->middleware('auth:sanctum');
 
@@ -62,6 +64,8 @@ Route::prefix('hotels')->group(function () {
     //get room hotel
     Route::get('/{hotel}/rooms', [RoomController::class, 'index']); // Public
     Route::post('/{hotel}/rooms', [RoomController::class, 'store'])->middleware('auth:sanctum', 'role:admin,host'); // Host/Admin
+
+
 });
 
 // Room update/delete by ID
