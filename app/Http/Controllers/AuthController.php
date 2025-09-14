@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use App\Helpers\NotiHelper;
 
 class AuthController extends Controller
 {
@@ -29,6 +30,9 @@ class AuthController extends Controller
         ]);
 
         $token = $user->createToken('api_token')->plainTextToken;
+        // Gửi noti
+        NotiHelper::push($user->id, "Chào mừng bạn đến với hệ thống Hotel Booking!");
+
 
         return response()->json([
             'message' => 'Đăng ký thành công',
@@ -114,6 +118,8 @@ class AuthController extends Controller
         $user->update([
             'password' => Hash::make($request->new_password),
         ]);
+        // Gửi noti
+        NotiHelper::push($user->id, "Bạn đã đổi mật khẩu thành công!");
 
         return response()->json(['message' => 'Đổi mật khẩu thành công']);
     }
@@ -184,6 +190,8 @@ class AuthController extends Controller
 
         // Logout tất cả session cũ
         $user->tokens()->delete();
+        // Gửi noti
+        NotiHelper::push($user->id, "Mật khẩu của bạn đã được reset thành công!");
 
         return response()->json(['message' => 'Đặt lại mật khẩu thành công']);
     }

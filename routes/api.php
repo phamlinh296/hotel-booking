@@ -6,6 +6,10 @@ use App\Http\Controllers\HotelController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\TagController;
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
@@ -21,9 +25,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 });
 
+// Me (profile)
+Route::get('/me/profile', [UserController::class, 'getProfile'])->middleware('auth:sanctum');
+Route::put('/me/update-profile', [UserController::class, 'updateProfile'])->middleware('auth:sanctum');
+Route::get('/me/likes', [UserController::class, 'myLikes'])->middleware('auth:sanctum');
+Route::get('/me/bookmarks', [UserController::class, 'myBookmarks'])->middleware('auth:sanctum');
+Route::get('/me/recent-views', [HotelController::class, 'recentViews'])->middleware('auth:sanctum');
+
 Route::prefix('hotels')->group(function () {
     // Recent viewed hotels - phải đặt trước /{id} để không bị nhầm
-    Route::get('/recent', [HotelController::class, 'recentViews'])->middleware('auth:sanctum');
+    // Route::get('/recent', [HotelController::class, 'recentViews'])->middleware('auth:sanctum');
 
     //crud
     Route::get('/', [HotelController::class, 'index']);                 // Public - List hotels
@@ -35,14 +46,16 @@ Route::prefix('hotels')->group(function () {
 
     // Reviews
     Route::get('/{id}/reviews', [HotelController::class, 'reviews'])->middleware('auth:sanctum');
+    Route::put('/reviews/{id}', [HotelController::class, 'updateReview'])->middleware('auth:sanctum');
     Route::post('/{id}/reviews', [HotelController::class, 'addReview'])->middleware('auth:sanctum');
+    Route::delete('/reviews/{id}', [HotelController::class, 'deleteReview'])->middleware('auth:sanctum');
 
     // Bookmarks
-    Route::put('/{id}/bookmarks', [HotelController::class, 'addBookmark'])->middleware('auth:sanctum');
+    Route::post('/{id}/bookmarks', [HotelController::class, 'addBookmark'])->middleware('auth:sanctum');
     Route::delete('/{id}/bookmarks', [HotelController::class, 'removeBookmark'])->middleware('auth:sanctum');
 
     // Likes
-    Route::put('/{id}/likes', [HotelController::class, 'addLike'])->middleware('auth:sanctum');
+    Route::post('/{id}/likes', [HotelController::class, 'addLike'])->middleware('auth:sanctum');
     Route::delete('/{id}/likes', [HotelController::class, 'removeLike'])->middleware('auth:sanctum');
 
     // Rooms
@@ -71,3 +84,24 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/payments', [PaymentController::class, 'store']); // Customer
     Route::get('/payments/{id}', [PaymentController::class, 'show']); // Customer/Admin
 });
+
+// Categories
+# Lấy categories
+Route::get('/categories', [CategoryController::class, 'index']);
+# Tạo categories -admin
+Route::post('/categories', [CategoryController::class, 'store'])->middleware('auth:sanctum', 'role:admin');
+
+// Tags
+# Lấy tags
+Route::get('/tags', [TagController::class, 'index']);
+# Tạo tag (Admin)
+Route::post('/tags', [TagController::class, 'store'])->middleware('auth:sanctum', 'role:admin');
+# Gắn tag vào hotel (Host/Admin)
+Route::post('/hotels/{id}/tags', [TagController::class, 'attachToHotel'])->middleware('auth:sanctum', 'role:admin,host');
+
+// Notifications
+//lấy noti
+Route::get('/notifications', [NotificationController::class, 'index'])->middleware('auth:sanctum');
+//đánh dấu đã đọc
+Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->middleware('auth:sanctum');
+Route::post('/notifications', [NotificationController::class, 'store'])->middleware('auth:sanctum');

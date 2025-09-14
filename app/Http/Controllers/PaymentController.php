@@ -7,6 +7,7 @@ use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use App\Models\Notification;
 
 class PaymentController extends Controller
 {
@@ -36,6 +37,22 @@ class PaymentController extends Controller
         ]);
 
         $booking->update(['payment_status' => 'paid']);
+
+        // Thêm Notification
+        // Cho customer
+        Notification::create([
+            'user_id' => Auth::id(),
+            'message' => 'Your payment for booking #' . $booking->id . ' was successful',
+            'is_read' => false,
+        ]);
+
+        // Cho host
+        $hotel = $booking->hotel()->first();
+        Notification::create([
+            'user_id' => $hotel->author_id,
+            'message' => 'You have received a payment for booking #' . $booking->id . ' (hotel: ' . $hotel->title . ')',
+            'is_read' => false,
+        ]);
 
         return response()->json([
             'message' => 'Payment successful',

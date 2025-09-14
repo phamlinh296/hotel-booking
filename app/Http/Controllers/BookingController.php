@@ -8,6 +8,7 @@ use App\Models\Room;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use App\Models\Notification;
 
 class BookingController extends Controller
 {
@@ -40,6 +41,22 @@ class BookingController extends Controller
             'payment_status' => 'pending',
         ]);
 
+        //noti
+        // Cho customer
+        Notification::create([
+            'user_id' => Auth::id(),
+            'message' => 'Your booking #' . $booking->id . ' has been created and is pending payment',
+            'is_read' => false,
+        ]);
+
+        // Cho host
+        $hotel = $booking->hotel()->first();
+        Notification::create([
+            'user_id' => $hotel->author_id,
+            'message' => 'A new booking #' . $booking->id . ' has been made for your hotel: ' . $hotel->title,
+            'is_read' => false,
+        ]);
+
         return response()->json([
             'message' => 'Booking created',
             'booking' => $booking
@@ -68,6 +85,22 @@ class BookingController extends Controller
     {
         $booking = Booking::where('user_id', Auth::id())->findOrFail($id);
         $booking->update(['payment_status' => 'cancelled']);
+
+        //noti
+        // Cho customer
+        Notification::create([
+            'user_id' => Auth::id(),
+            'message' => 'You have cancelled booking #' . $booking->id,
+            'is_read' => false,
+        ]);
+
+        // Cho host
+        $hotel = $booking->hotel()->first();
+        Notification::create([
+            'user_id' => $hotel->author_id,
+            'message' => 'Booking #' . $booking->id . ' for your hotel ' . $hotel->title . ' has been cancelled',
+            'is_read' => false,
+        ]);
 
         return response()->json(['message' => 'Booking cancelled']);
     }

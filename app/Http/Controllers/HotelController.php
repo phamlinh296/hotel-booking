@@ -128,6 +128,27 @@ class HotelController extends Controller
         ]);
     }
 
+    public function updateReview(Request $request, $id)
+    {
+        $review = Review::where('id', $id)->where('user_id', auth()->id())->firstOrFail();
+
+        $review->update($request->only('rating', 'comment'));
+
+        return response()->json(['message' => 'Review updated']);
+    }
+
+    public function deleteReview($id)
+    {
+        $review = Review::where('id', $id)
+            ->where(function ($q) {
+                $q->where('user_id', auth()->id())->orWhereHas('user', fn($u) => $u->where('role', 'admin'));
+            })->firstOrFail();
+
+        $review->delete();
+
+        return response()->json(['message' => 'Review deleted']);
+    }
+
     // ===== Bookmarks =====
     public function addBookmark($id)
     {

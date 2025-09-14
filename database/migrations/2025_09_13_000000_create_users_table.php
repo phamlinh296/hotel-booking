@@ -18,6 +18,8 @@ return new class extends Migration {
             $table->string('avatar')->nullable();
             $table->rememberToken();
             $table->timestamps();
+            $table->date('date_of_birth')->nullable();
+            $table->enum('gender', ['male', 'female', 'other'])->nullable()->after('phone');
         });
     }
 

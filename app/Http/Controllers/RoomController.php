@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Room;
 use App\Models\Hotel;
+use App\Helpers\NotiHelper;
 
 class RoomController extends Controller
 {
@@ -39,6 +40,8 @@ class RoomController extends Controller
         $data['hotel_id'] = $hotel->id;
 
         $room = Room::create($data);
+        // Gửi noti cho owner hotel
+        NotiHelper::push($hotel->author_id, "Phòng '{$room->name}' vừa được thêm vào khách sạn '{$hotel->title}'.");
 
         return response()->json([
             'message' => 'Room created',
@@ -67,6 +70,9 @@ class RoomController extends Controller
         ]);
 
         $room->update($data);
+        // Gửi noti
+        NotiHelper::push($room->hotel->author_id, "Phòng '{$room->name}' của khách sạn '{$room->hotel->title}' đã được cập nhật.");
+
 
         return response()->json([
             'message' => 'Room updated',
@@ -85,6 +91,9 @@ class RoomController extends Controller
         }
 
         $room->delete();
+        // Gửi noti
+        NotiHelper::push($room->hotel->author_id, "Phòng '{$room->name}' của khách sạn '{$room->hotel->title}' đã bị xóa.");
+
 
         return response()->json(['message' => 'Room deleted']);
     }
