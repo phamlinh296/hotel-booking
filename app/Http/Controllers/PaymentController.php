@@ -32,12 +32,18 @@ class PaymentController extends Controller
             'user_id' => Auth::id(),
             'amount' => $booking->total_price,
             'method' => $data['method'],
-            'status' => 'completed',
+            'status' => 'completed', // hoặc pending nếu tích hợp gateway
             'transaction_ref' => 'TX' . strtoupper(uniqid())
         ]);
 
-        $booking->update(['payment_status' => 'paid']);
+        $booking->update([
+            'payment_status' => 'paid',
+            'status' => 'confirmed'
+        ]);
 
+        // Cập nhật Room status
+        $booking->room->update(['status' => 'booked']);
+        //Note: tích hợp payment gateway thực tế → nên có webhook để update Payment.status và Booking.status tự động.
         // Thêm Notification
         // Cho customer
         Notification::create([

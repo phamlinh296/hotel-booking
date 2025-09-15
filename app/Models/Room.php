@@ -17,7 +17,7 @@ class Room extends Model
         'max_guests',
         'bed_count',
         'bathroom_count',
-        'status'
+        'status' //free/occupied/booked  actual: 'available', 'booked', 'maintenance'
     ];
 
     public function hotel()

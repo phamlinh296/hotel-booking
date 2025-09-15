@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\HotelLike;
 use App\Models\Bookmark;
 use App\Models\RecentView;
+use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
@@ -29,11 +30,19 @@ class UserController extends Controller
             'phone'        => 'nullable|string|max:20',
             'gender'       => 'nullable|in:male,female,other',
             'avatar'       => 'nullable|image|max:2048'
+            // 'avatar'       => 'nullable|file'
         ]);
 
         if ($request->hasFile('avatar')) {
+            Log::debug('Avatar file received', [
+                'original_name' => $request->file('avatar')->getClientOriginalName(),
+                'mime_type' => $request->file('avatar')->getMimeType()
+            ]);
+
             $path = $request->file('avatar')->store('avatars', 'public');
+            echo "Stored path: " . $path;
             $user->avatar = $path;
+            Log::info('Avatar stored', ['path' => $path]);
         }
 
         if ($user instanceof User) {
@@ -46,6 +55,7 @@ class UserController extends Controller
             ]));
             $user->save();
         }
+        Log::info('Profile updated successfully', ['user_id' => $user->id]);
 
         return response()->json([
             'message' => 'Cập nhật profile thành công',

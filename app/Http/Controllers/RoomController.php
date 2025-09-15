@@ -34,7 +34,7 @@ class RoomController extends Controller
             'max_guests' => 'required|integer',
             'bed_count' => 'nullable|integer',
             'bathroom_count' => 'nullable|integer',
-            'status' => 'nullable|string',
+            'status' => 'nullable|string|in:available,booked,maintenance',
         ]);
 
         $data['hotel_id'] = $hotel->id;
@@ -66,7 +66,7 @@ class RoomController extends Controller
             'max_guests' => 'sometimes|integer',
             'bed_count' => 'sometimes|integer',
             'bathroom_count' => 'sometimes|integer',
-            'status' => 'sometimes|string',
+            'status' => 'nullable|string|in:available,booked,maintenance',
         ]);
 
         $room->update($data);
@@ -89,6 +89,11 @@ class RoomController extends Controller
         if (auth()->user()->role !== 'admin' && $room->hotel->author_id !== auth()->id()) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
+        //Khi xóa phòng có booking confirmed → check tránh xóa nhầm:
+        if ($room->bookings()->where('status', 'confirmed')->exists()) {
+            return response()->json(['message' => 'Cannot delete room with confirmed bookings'], 400);
+        }
+
 
         $room->delete();
         // Gửi noti

@@ -19,15 +19,15 @@ Route::prefix('auth')->group(function () {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/profile', [AuthController::class, 'profile']);
-    Route::put('/profile', [AuthController::class, 'updateProfile']);
+    // Route::get('/profile', [AuthController::class, 'profile']);
+    // Route::put('/profile', [AuthController::class, 'updateProfile']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
     Route::post('/logout', [AuthController::class, 'logout']);
 });
 
 // Me (profile)
 Route::get('/me/profile', [UserController::class, 'getProfile'])->middleware('auth:sanctum');
-Route::put('/me/update-profile', [UserController::class, 'updateProfile'])->middleware('auth:sanctum');
+Route::post('/me/update-profile', [UserController::class, 'updateProfile'])->middleware('auth:sanctum');
 Route::get('/me/likes', [UserController::class, 'myLikes'])->middleware('auth:sanctum');
 Route::get('/me/bookmarks', [UserController::class, 'myBookmarks'])->middleware('auth:sanctum');
 Route::get('/me/recent-views', [HotelController::class, 'recentViews'])->middleware('auth:sanctum');

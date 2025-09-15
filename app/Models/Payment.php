@@ -14,7 +14,7 @@ class Payment extends Model
         'user_id',
         'amount',
         'method',
-        'status',
+        'status', // pending | paid | failed | refunded
         'transaction_ref'
     ];
 

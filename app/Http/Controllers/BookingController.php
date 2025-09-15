@@ -29,6 +29,17 @@ class BookingController extends Controller
                 'guests' => "Number of guests exceeds room's max capacity."
             ]);
         }
+        //Check room availability trước khi tạo để tránh double booking:
+        $overlap = Booking::where('room_id', $data['room_id'])
+            ->where('status', 'confirmed')
+            ->where(function ($q) use ($data) {
+                $q->whereBetween('check_in_date', [$data['check_in_date'], $data['check_out_date']])
+                    ->orWhereBetween('check_out_date', [$data['check_in_date'], $data['check_out_date']]);
+            })->exists();
+
+        if ($overlap) {
+            throw ValidationException::withMessages(['room_id' => 'Room is already booked for selected dates']);
+        }
 
         $booking = Booking::create([
             'hotel_id' => $data['hotel_id'],
@@ -39,6 +50,7 @@ class BookingController extends Controller
             'guests' => $data['guests'],
             'total_price' => ($room->price * (strtotime($data['check_out_date']) - strtotime($data['check_in_date'])) / 86400),
             'payment_status' => 'pending',
+            'status' => 'pending', // thêm
         ]);
 
         //noti
@@ -84,7 +96,25 @@ class BookingController extends Controller
     public function cancel($id)
     {
         $booking = Booking::where('user_id', Auth::id())->findOrFail($id);
-        $booking->update(['payment_status' => 'cancelled']);
+        $booking->update([
+            'payment_status' => 'cancelled',
+            'status' => 'cancelled'
+        ]);
+
+        // Trả phòng về available nếu chưa check-in
+        $room = $booking->room;
+        if ($room->status === 'booked') {
+            $room->update(['status' => 'available']);
+        }
+
+        // Nếu payment đã thanh toán, trigger refund logic
+        if ($booking->payment_status === 'paid') {
+            $payment = $booking->payment;
+            if ($payment) {
+                $payment->update(['status' => 'refunded']);
+                // Optional: gọi payment gateway refund API
+            }
+        }
 
         //noti
         // Cho customer

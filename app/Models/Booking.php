@@ -17,7 +17,8 @@ class Booking extends Model
         'check_out_date',
         'guests',
         'total_price',
-        'payment_status'
+        'payment_status',
+        'status',         // mới: pending | confirmed | canceled | completed
     ];
 
     public function hotel()

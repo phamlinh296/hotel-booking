@@ -260,7 +260,7 @@ class HotelController extends Controller
                 });
             })
             ->with('author') //Load thông tin author (người tạo khách sạn)
-            ->paginate(4);
+            ->paginate(30);
 
         return response()->json([
             'message' => 'Danh sách khách sạn tìm được',
