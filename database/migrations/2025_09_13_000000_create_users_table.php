@@ -9,19 +9,40 @@ return new class extends Migration {
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->nullable();
+
+            // Họ tên
+            $table->string('first_name')->nullable();
+            $table->string('last_name')->nullable();
+            $table->string('name')->nullable(); // display_name
+
+            // Đăng nhập
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->enum('role', ['admin', 'host', 'customer'])->default('customer');
+
+            // Vai trò & trạng thái
+            $table->enum('role', ['admin', 'author', 'user'])->default('user');
+            $table->enum('status', ['active', 'inactive', 'banned'])->default('active');
+
+            // Thông tin cá nhân
+            $table->enum('gender', ['male', 'female', 'other'])->nullable();
+            $table->date('date_of_birth')->nullable();
             $table->string('phone')->nullable();
+            $table->string('address')->nullable();
+
+            // Profile
             $table->string('avatar')->nullable();
+            $table->string('background_image')->nullable();
+            $table->text('desc')->nullable();
+            $table->string('job_title')->nullable();
+            $table->string('href')->nullable();
+            $table->integer('count')->default(0); // số lượng bài viết, lượt tương tác, v.v.
+            // Hệ thống
             $table->rememberToken();
             $table->timestamps();
-            $table->date('date_of_birth')->nullable();
-            $table->enum('gender', ['male', 'female', 'other'])->nullable()->after('phone');
         });
     }
+
 
     public function down(): void
     {

@@ -10,6 +10,9 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\TagController;
+use App\Mail\BookingRefundMail;
+use App\Models\Booking;
+use Illuminate\Support\Facades\Mail;
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
@@ -41,10 +44,10 @@ Route::prefix('hotels')->group(function () {
     //crud
     Route::get('/', [HotelController::class, 'index']);                 // Public - List hotels
     Route::get('/{id}', [HotelController::class, 'show'])->middleware('auth:sanctum');           // Public - Hotel detail
-    Route::post('/', [HotelController::class, 'store'])->middleware('auth:sanctum', 'role:admin,host');              // Host/Admin - Create hotel
-    Route::put('/{id}', [HotelController::class, 'update'])->middleware('auth:sanctum', 'role:admin,host');          // Host/Admin - Update hotel
-    Route::delete('/{id}', [HotelController::class, 'destroy'])->middleware('auth:sanctum', 'role:admin,host');       // Host/Admin - Delete hotel
-    Route::post('/{id}/images', [HotelController::class, 'uploadImages'])->middleware('auth:sanctum', 'role:admin,host'); // Host/Admin - Upload images
+    Route::post('/', [HotelController::class, 'store'])->middleware('auth:sanctum', 'role:admin,author');              // Host/Admin - Create hotel
+    Route::put('/{id}', [HotelController::class, 'update'])->middleware('auth:sanctum', 'role:admin,author');          // Host/Admin - Update hotel
+    Route::delete('/{id}', [HotelController::class, 'destroy'])->middleware('auth:sanctum', 'role:admin,author');       // Host/Admin - Delete hotel
+    Route::post('/{id}/images', [HotelController::class, 'uploadImages'])->middleware('auth:sanctum', 'role:admin,author'); // Host/Admin - Upload images
 
     // Reviews
     Route::get('/{id}/reviews', [HotelController::class, 'reviews'])->middleware('auth:sanctum');
@@ -63,15 +66,15 @@ Route::prefix('hotels')->group(function () {
     // Rooms
     //get room hotel
     Route::get('/{hotel}/rooms', [RoomController::class, 'index']); // Public
-    Route::post('/{hotel}/rooms', [RoomController::class, 'store'])->middleware('auth:sanctum', 'role:admin,host'); // Host/Admin
+    Route::post('/{hotel}/rooms', [RoomController::class, 'store'])->middleware('auth:sanctum', 'role:admin,author'); // Host/Admin
 
 
 });
 
 // Room update/delete by ID
 Route::prefix('rooms')->group(function () {
-    Route::put('/{room}', [RoomController::class, 'update'])->middleware('auth:sanctum', 'role:admin,host'); // Host/Admin
-    Route::delete('/{room}', [RoomController::class, 'destroy'])->middleware('auth:sanctum', 'role:admin,host'); // Host/Admin
+    Route::put('/{room}', [RoomController::class, 'update'])->middleware('auth:sanctum', 'role:admin,author'); // Host/Admin
+    Route::delete('/{room}', [RoomController::class, 'destroy'])->middleware('auth:sanctum', 'role:admin,author'); // Host/Admin
 });
 
 // Booking
@@ -81,8 +84,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/bookings/{id}', [BookingController::class, 'show']); // Customer
     Route::put('/bookings/{id}/cancel', [BookingController::class, 'cancel']); // Customer
 
-    Route::get('/host/bookings', [BookingController::class, 'hostBookings'])->middleware('role:host'); // Host
+    Route::get('/host/bookings', [BookingController::class, 'hostBookings'])->middleware('role:author'); // Host
     Route::get('/admin/bookings', [BookingController::class, 'adminBookings'])->middleware('role:admin'); // Admin
+    //còn curl nữa, luồng thanh toán
+    Route::put('/bookings/{id}/customer-info', [BookingController::class, 'updateCustomerInfo']);
+    Route::post('/bookings/{id}/confirm', [BookingController::class, 'confirm'])->middleware('role:author');; // Host
+    Route::post('/bookings/{id}/reject', [BookingController::class, 'reject'])->middleware('role:author');; // Host
+    Route::post('/bookings/{id}/payment-status', [BookingController::class, 'updatePaymentStatus']);
 
     // Payment
     Route::post('/payments', [PaymentController::class, 'store']); // Customer
@@ -101,7 +109,7 @@ Route::get('/tags', [TagController::class, 'index']);
 # Tạo tag (Admin)
 Route::post('/tags', [TagController::class, 'store'])->middleware('auth:sanctum', 'role:admin');
 # Gắn tag vào hotel (Host/Admin)
-Route::post('/hotels/{id}/tags', [TagController::class, 'attachToHotel'])->middleware('auth:sanctum', 'role:admin,host');
+Route::post('/hotels/{id}/tags', [TagController::class, 'attachToHotel'])->middleware('auth:sanctum', 'role:admin,author');
 
 // Notifications
 //lấy noti
@@ -109,3 +117,13 @@ Route::get('/notifications', [NotificationController::class, 'index'])->middlewa
 //đánh dấu đã đọc
 Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->middleware('auth:sanctum');
 Route::post('/notifications', [NotificationController::class, 'store'])->middleware('auth:sanctum');
+
+//test mail
+Route::get('/test-mail', function () {
+    $booking = Booking::first();
+    if (!$booking) {
+        return "No booking found in database. Please create one first.";
+    }
+    Mail::to('your_email@example.com')->send(new BookingRefundMail($booking));
+    return "Mail sent!";
+});

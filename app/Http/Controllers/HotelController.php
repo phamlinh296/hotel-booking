@@ -7,6 +7,7 @@ use App\Models\HotelImage;
 use App\Models\Review;
 use Illuminate\Http\Request;
 use App\Dto\Requests\HotelRequest;
+use App\Http\Resources\HotelResource;
 
 class HotelController extends Controller
 {
@@ -23,7 +24,8 @@ class HotelController extends Controller
 
         $hotels = $query->paginate(10);
 
-        return response()->json($hotels);
+        // return response()->json($hotels);
+        return HotelResource::collection($hotels);
     }
 
     // ===== Hotel Detail =====
@@ -39,19 +41,23 @@ class HotelController extends Controller
                 ['viewed_at' => now()]
             );
         }
-        return response()->json($hotel);
+        // return response()->json($hotel);
+        return new HotelResource($hotel);
     }
 
     // ===== Create Hotel =====
     public function store(HotelRequest $request)
     {
+        $mappedData = HotelRequest::fromArray($request->validated());
+
         $hotel = Hotel::create(array_merge(
-            $request->validated(),
+            $mappedData,
             ['author_id' => auth()->id()]
         ));
+
         return response()->json([
             'message' => 'Hotel created',
-            'hotel' => $hotel
+            'hotel' => new HotelResource($hotel)
         ]);
     }
 
@@ -59,11 +65,14 @@ class HotelController extends Controller
     public function update(HotelRequest $request, $id)
     {
         $hotel = Hotel::findOrFail($id);
-        $hotel->update($request->validated());
+        // $hotel->update($request->validated());
+        $mappedData = HotelRequest::fromArray($request->validated());
+        $hotel->update($mappedData);
+
 
         return response()->json([
             'message' => 'Hotel updated',
-            'hotel' => $hotel
+            'hotel' => new HotelResource($hotel)
         ]);
     }
 
@@ -264,7 +273,7 @@ class HotelController extends Controller
 
         return response()->json([
             'message' => 'Danh sách khách sạn tìm được',
-            'data'    => $hotels
+            'data'    => HotelResource::collection($hotels)
         ]);
     }
 }

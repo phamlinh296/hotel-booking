@@ -28,6 +28,7 @@ class User extends Authenticatable
         'status',           // active | inactive | banned
         'date_of_birth',
         'phone',
+        'count', // thêm
     ];
 
     protected $hidden = [
